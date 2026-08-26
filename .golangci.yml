@@ -1,0 +1,120 @@
+version: "2"
+linters:
+  # Default set of linters.
+  # The value can be: `standard`, `all`, `none`, or `fast`.
+  # Default: standard
+  default: all
+  enable:
+    - gomodguard_v2
+  disable:
+    - depguard
+    - dupl
+    - err113
+    - exhaustruct
+    - gochecknoglobals
+    - goconst
+    - gomodguard
+    - gosmopolitan
+    - noinlineerr
+    - paralleltest
+    - revive
+    - testpackage
+    - wrapcheck
+    - tagalign
+    - ireturn
+    - wsl
+    - mnd
+    - prealloc
+    - tagliatelle
+    - unqueryvet
+
+  exclusions:
+    rules:
+      # dont lll lint struct tags which cant be split
+      - linters:
+          - lll
+        source: '`([a-zA-Z0-9_]+):"([^"]*)"(\s([a-zA-Z0-9_]+):"([^"]*)")*`'
+    paths:
+      - internal/models
+
+  settings:
+    cyclop:
+      # The maximal code complexity to report.
+      # Default: 10
+      max-complexity: 15
+
+    funlen:
+      # dont count lines, just statements
+      lines: -1
+
+    goconst:
+      ignore-tests: true
+
+    nolintlint:
+      allow-unused: true
+
+    varnamelen:
+      # The longest distance, in source lines, that is being considered a "small scope." (defaults to 5)
+      # Variables used in at most this many lines will be ignored.
+      max-distance: 5
+      # The minimum length of a variable's name that is considered "long." (defaults to 3)
+      # Variable names that are at least this long will be ignored.
+      min-name-length: 3
+      # Check method receivers. (defaults to false)
+      check-receiver: false
+      # Check named return values. (defaults to false)
+      check-return: false
+      # Check type parameters. (defaults to false)
+      check-type-param: false
+      # Ignore "ok" variables that hold the bool return value of a type assertion. (defaults to false)
+      ignore-type-assert-ok: false
+      # Ignore "ok" variables that hold the bool return value of a map index. (defaults to false)
+      ignore-map-index-ok: false
+      # Ignore "ok" variables that hold the bool return value of a channel receive. (defaults to false)
+      ignore-chan-recv-ok: false
+      # Optional list of variable names that should be ignored completely. (defaults to empty list)
+      ignore-names:
+        - err
+      # Optional list of variable declarations that should be ignored completely. (defaults to empty list)
+      # Entries must be in one of the following forms (see below for examples):
+      # - for variables, parameters, named return values, method receivers, or type parameters:
+      #   <name> <type>  (<type> can also be a pointer/slice/map/chan/...)
+      # - for constants: const <name>
+      ignore-decls:
+        - t testing.T
+        - i int
+        - const C
+        - T any
+        - w *httptest.ResponseRecorder
+        - w http.ResponseWriter
+        - r *http.Request
+        - c *gin.Context
+        - ok bool
+        - id uuid.UUID
+        - id *uuid.UUID
+
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+
+formatters:
+  # Enable specific formatter.
+  # Default: [] (uses standard Go formatting)
+  enable:
+    - gofumpt
+
+issues:
+  # Maximum issues count per one linter.
+  # Set to 0 to disable.
+  # Default: 50
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 0
+  # Make issues output unique by line.
+  # Default: true
+  uniq-by-line: false
