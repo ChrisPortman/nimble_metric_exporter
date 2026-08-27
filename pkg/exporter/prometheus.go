@@ -170,7 +170,7 @@ func (p *PrometheusServer) registerMetrics(target *targetMetricPipeline) error {
 	if !p.options.DisableDiskMetrics {
 		target.logger.Info("registering disk metrics")
 
-		_, err := NewDiskMetrics(target.nimble.DiskService(), target.meter, target.logger)
+		_, err := NewDiskMetrics(target.nimble, target.meter, target.logger)
 		if err != nil {
 			return err
 		}
@@ -179,7 +179,7 @@ func (p *PrometheusServer) registerMetrics(target *targetMetricPipeline) error {
 	if !p.options.DisableShelfMetrics {
 		target.logger.Info("registering shelf metrics")
 
-		_, err := NewShelfMetrics(target.nimble.ShelfService(), target.meter, target.logger)
+		_, err := NewShelfMetrics(target.nimble, target.meter, target.logger)
 		if err != nil {
 			return err
 		}
@@ -188,7 +188,7 @@ func (p *PrometheusServer) registerMetrics(target *targetMetricPipeline) error {
 	if !p.options.DisablePoolMetrics {
 		target.logger.Info("registering pool metrics")
 
-		_, err := NewPoolMetrics(target.nimble.PoolService(), target.meter, target.logger)
+		_, err := NewPoolMetrics(target.nimble, target.meter, target.logger)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func (p *PrometheusServer) registerMetrics(target *targetMetricPipeline) error {
 	if !p.options.DisableVolumeMetrics {
 		target.logger.Info("registering volume metrics")
 
-		_, err := NewVolumeMetrics(target.nimble.VolumeService(), target.meter, target.logger)
+		_, err := NewVolumeMetrics(target.nimble, target.meter, target.logger)
 		if err != nil {
 			return err
 		}

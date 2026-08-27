@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -12,9 +14,15 @@ import (
 	"github.com/ChrisPortman/nimble_metric_exporter/pkg/client"
 )
 
+type shelfLocationLookup struct {
+	// Store a mapping of shelf IDs to human friendly location references
+	shelfLocations     map[string]string
+	shelfLocationsLock sync.RWMutex
+}
+
 type ShelfMetrics struct {
-	service *client.ShelfService
-	logger  *slog.Logger
+	client *client.NimbleClient
+	logger *slog.Logger
 
 	overallPSU  metric.Int64ObservableGauge
 	overallTemp metric.Int64ObservableGauge
@@ -22,9 +30,11 @@ type ShelfMetrics struct {
 
 	sensorStatus metric.Int64ObservableGauge
 	sensorValue  metric.Int64ObservableGauge
+
+	shelfLocations *shelfLocationLookup
 }
 
-func NewShelfMetrics(service *client.ShelfService, meter metric.Meter, logger *slog.Logger) (ShelfMetrics, error) {
+func NewShelfMetrics(client *client.NimbleClient, meter metric.Meter, logger *slog.Logger) (ShelfMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -33,8 +43,9 @@ func NewShelfMetrics(service *client.ShelfService, meter metric.Meter, logger *s
 	}
 
 	metrics := ShelfMetrics{
-		service: service,
-		logger:  log,
+		client:         client,
+		logger:         log,
+		shelfLocations: &shelfLocationLookup{},
 	}
 
 	metrics.overallPSU, err = meter.Int64ObservableGauge(
@@ -97,7 +108,9 @@ func (m *ShelfMetrics) Register(meter metric.Meter) error {
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading shelf metrics")
 
-			shelvestates, err := getShelfStates(ctx, m.service)
+			m.updateShelfLocations(ctx)
+
+			shelvestates, err := m.getShelfStates(ctx)
 			if err != nil {
 				m.logger.Error("error retrieving shelf data", slog.String("error", err.Error()))
 
@@ -129,6 +142,50 @@ func (m *ShelfMetrics) Register(meter metric.Meter) error {
 	return err
 }
 
+func (m *ShelfMetrics) updateShelfLocations(ctx context.Context) error {
+	if len(m.shelfLocations.shelfLocations) > 0 {
+		// precheck to see if its already been done
+		return nil
+	}
+
+	m.shelfLocations.shelfLocationsLock.Lock()
+	defer m.shelfLocations.shelfLocationsLock.Unlock()
+
+	if len(m.shelfLocations.shelfLocations) > 0 {
+		// already done by another first call to observe metrics
+		return nil
+	}
+
+	disks, err := m.client.DiskService().GetDisks(ctx)
+	if err != nil {
+		return err
+	}
+
+	m.shelfLocations.shelfLocations = map[string]string{}
+
+	for _, disk := range disks {
+		// Remove the Controller designation from the ShelfLocation so we dont get duplicate
+		// series if the controllers active state changes.
+		shelfLocation := disk.ShelfLocation
+
+		shelfLoationParts := strings.SplitN(disk.ShelfLocation, ".", 2)
+		if len(shelfLoationParts) > 1 {
+			shelfLocation = shelfLoationParts[1]
+		}
+
+		m.shelfLocations.shelfLocations[disk.ShelfID] = shelfLocation
+	}
+
+	return nil
+}
+
+func (m *ShelfMetrics) getShelfLocation(id string) string {
+	m.shelfLocations.shelfLocationsLock.RLock()
+	defer m.shelfLocations.shelfLocationsLock.RUnlock()
+
+	return m.shelfLocations.shelfLocations[id]
+}
+
 type shelfSensor struct {
 	sensor models.ShelfSensor
 }
@@ -155,7 +212,9 @@ type shelvestate struct {
 	attributes []attribute.KeyValue
 }
 
-func getShelfStates(ctx context.Context, service *client.ShelfService) ([]shelvestate, error) {
+func (m *ShelfMetrics) getShelfStates(ctx context.Context) ([]shelvestate, error) {
+	service := m.client.ShelfService()
+
 	shelves, err := service.GetShelves(ctx)
 	if err != nil {
 		return nil, err
@@ -164,10 +223,18 @@ func getShelfStates(ctx context.Context, service *client.ShelfService) ([]shelve
 	shelvestates := make([]shelvestate, 0, len(shelves))
 
 	for _, shelf := range shelves {
+		shelfLocationId := m.getShelfLocation(shelf.ID)
 		attributes := []attribute.KeyValue{
 			{Key: "model", Value: attribute.StringValue(shelf.Model)},
 			{Key: "serial", Value: attribute.StringValue(shelf.Serial)},
 			{Key: "type", Value: attribute.StringValue(shelf.ChassisType)},
+		}
+
+		if shelfLocationId != "" {
+			attributes = append(
+				attributes,
+				attribute.KeyValue{Key: "shelf", Value: attribute.StringValue(shelfLocationId)},
+			)
 		}
 
 		sensors := []shelfSensor{}

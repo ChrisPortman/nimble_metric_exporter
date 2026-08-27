@@ -11,8 +11,8 @@ import (
 )
 
 type VolumeMetrics struct {
-	service *client.VolumeService
-	logger  *slog.Logger
+	client *client.NimbleClient
+	logger *slog.Logger
 
 	capacity    metric.Int64ObservableGauge
 	used        metric.Int64ObservableGauge
@@ -35,7 +35,7 @@ type VolumeMetrics struct {
 }
 
 //nolint:cyclop,funlen
-func NewVolumeMetrics(service *client.VolumeService, meter metric.Meter, logger *slog.Logger) (VolumeMetrics, error) {
+func NewVolumeMetrics(client *client.NimbleClient, meter metric.Meter, logger *slog.Logger) (VolumeMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -44,8 +44,8 @@ func NewVolumeMetrics(service *client.VolumeService, meter metric.Meter, logger 
 	}
 
 	metrics := VolumeMetrics{
-		service: service,
-		logger:  log,
+		client: client,
+		logger: log,
 	}
 
 	metrics.capacity, err = meter.Int64ObservableGauge(
@@ -199,7 +199,7 @@ func (m *VolumeMetrics) Register(meter metric.Meter) error {
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading volume metrics")
 
-			volumeStates, err := getVolumeStates(ctx, m.service)
+			volumeStates, err := getVolumeStates(ctx, m.client.VolumeService())
 			if err != nil {
 				m.logger.Error("error retrieving volume data", slog.String("error", err.Error()))
 

@@ -11,8 +11,8 @@ import (
 )
 
 type PoolMetrics struct {
-	service *client.PoolService
-	logger  *slog.Logger
+	client *client.NimbleClient
+	logger *slog.Logger
 
 	capacity      metric.Int64ObservableGauge
 	used          metric.Int64ObservableGauge
@@ -20,7 +20,7 @@ type PoolMetrics struct {
 	cacheCapacity metric.Int64ObservableGauge
 }
 
-func NewPoolMetrics(service *client.PoolService, meter metric.Meter, logger *slog.Logger) (PoolMetrics, error) {
+func NewPoolMetrics(client *client.NimbleClient, meter metric.Meter, logger *slog.Logger) (PoolMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -29,8 +29,8 @@ func NewPoolMetrics(service *client.PoolService, meter metric.Meter, logger *slo
 	}
 
 	metrics := PoolMetrics{
-		service: service,
-		logger:  log,
+		client: client,
+		logger: log,
 	}
 
 	metrics.capacity, err = meter.Int64ObservableGauge(
@@ -80,7 +80,7 @@ func (m *PoolMetrics) Register(meter metric.Meter) error {
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading pool metrics")
 
-			poolStates, err := getPoolStates(ctx, m.service)
+			poolStates, err := getPoolStates(ctx, m.client.PoolService())
 			if err != nil {
 				m.logger.Error("error retrieving pool data", slog.String("error", err.Error()))
 
