@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/ChrisPortman/nimble_metric_exporter/pkg/client"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -19,11 +18,9 @@ type DiskMetrics struct {
 	absent metric.Int64ObservableGauge
 	raid   metric.Int64ObservableGauge
 	size   metric.Int64ObservableGauge
-
-	meter metric.Meter
 }
 
-func NewDiskMetrics(service *client.DiskService, logger *slog.Logger) (DiskMetrics, error) {
+func NewDiskMetrics(service *client.DiskService, meter metric.Meter, logger *slog.Logger) (DiskMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -36,9 +33,7 @@ func NewDiskMetrics(service *client.DiskService, logger *slog.Logger) (DiskMetri
 		logger:  log,
 	}
 
-	metrics.meter = otel.Meter("github.com/ChrisPortman/nimble_metric_exporter/pkg/exporter")
-
-	metrics.absent, err = metrics.meter.Int64ObservableGauge(
+	metrics.absent, err = meter.Int64ObservableGauge(
 		"nimble.disk.state.absent",
 		metric.WithDescription("Indicates disk is in failed state."),
 	)
@@ -46,7 +41,7 @@ func NewDiskMetrics(service *client.DiskService, logger *slog.Logger) (DiskMetri
 		return metrics, fmt.Errorf("error creating nimble.disk.state.absent: %w", err)
 	}
 
-	metrics.failed, err = metrics.meter.Int64ObservableGauge(
+	metrics.failed, err = meter.Int64ObservableGauge(
 		"nimble.disk.state.failed",
 		metric.WithDescription("Indicates disk is in failed state."),
 	)
@@ -54,7 +49,7 @@ func NewDiskMetrics(service *client.DiskService, logger *slog.Logger) (DiskMetri
 		return metrics, fmt.Errorf("error creating nimble.disk.state.failed: %w", err)
 	}
 
-	metrics.raid, err = metrics.meter.Int64ObservableGauge(
+	metrics.raid, err = meter.Int64ObservableGauge(
 		"nimble.disk.raid.resync",
 		metric.WithDescription("Indicates disk is in raid resyncing."),
 	)
@@ -62,7 +57,7 @@ func NewDiskMetrics(service *client.DiskService, logger *slog.Logger) (DiskMetri
 		return metrics, fmt.Errorf("error creating nimble.disk.raid.resync: %w", err)
 	}
 
-	metrics.size, err = metrics.meter.Int64ObservableGauge(
+	metrics.size, err = meter.Int64ObservableGauge(
 		"nimble.disk.size",
 		metric.WithDescription("Disk size in bytes."),
 		metric.WithUnit("By"),
@@ -71,11 +66,15 @@ func NewDiskMetrics(service *client.DiskService, logger *slog.Logger) (DiskMetri
 		return metrics, fmt.Errorf("error creating nimble.disk.size: %w", err)
 	}
 
+	if err := metrics.Register(meter); err != nil {
+		return metrics, err
+	}
+
 	return metrics, nil
 }
 
-func (m *DiskMetrics) Register(ctx context.Context) error {
-	_, err := m.meter.RegisterCallback(
+func (m *DiskMetrics) Register(meter metric.Meter) error {
+	_, err := meter.RegisterCallback(
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading disk metrics")
 

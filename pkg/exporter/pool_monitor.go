@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/ChrisPortman/nimble_metric_exporter/pkg/client"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -19,11 +18,9 @@ type PoolMetrics struct {
 	used          metric.Int64ObservableGauge
 	volumes       metric.Int64ObservableGauge
 	cacheCapacity metric.Int64ObservableGauge
-
-	meter metric.Meter
 }
 
-func NewPoolMetrics(service *client.PoolService, logger *slog.Logger) (PoolMetrics, error) {
+func NewPoolMetrics(service *client.PoolService, meter metric.Meter, logger *slog.Logger) (PoolMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -36,9 +33,7 @@ func NewPoolMetrics(service *client.PoolService, logger *slog.Logger) (PoolMetri
 		logger:  log,
 	}
 
-	metrics.meter = otel.Meter("github.com/ChrisPortman/nimble_metric_exporter/pkg/exporter")
-
-	metrics.capacity, err = metrics.meter.Int64ObservableGauge(
+	metrics.capacity, err = meter.Int64ObservableGauge(
 		"nimble.pool.capacity",
 		metric.WithDescription("Capacity of the pool in bytes"),
 		metric.WithUnit("By"),
@@ -47,7 +42,7 @@ func NewPoolMetrics(service *client.PoolService, logger *slog.Logger) (PoolMetri
 		return metrics, fmt.Errorf("error creating nimble.pool.capacity: %w", err)
 	}
 
-	metrics.used, err = metrics.meter.Int64ObservableGauge(
+	metrics.used, err = meter.Int64ObservableGauge(
 		"nimble.pool.used",
 		metric.WithDescription("Usage of the pool in bytes"),
 		metric.WithUnit("By"),
@@ -56,7 +51,7 @@ func NewPoolMetrics(service *client.PoolService, logger *slog.Logger) (PoolMetri
 		return metrics, fmt.Errorf("error creating nimble.pool.used: %w", err)
 	}
 
-	metrics.volumes, err = metrics.meter.Int64ObservableGauge(
+	metrics.volumes, err = meter.Int64ObservableGauge(
 		"nimble.pool.volumes",
 		metric.WithDescription("Number of volumes provisioned in the pool"),
 	)
@@ -64,7 +59,7 @@ func NewPoolMetrics(service *client.PoolService, logger *slog.Logger) (PoolMetri
 		return metrics, fmt.Errorf("error creating nimble.pool.volumes: %w", err)
 	}
 
-	metrics.cacheCapacity, err = metrics.meter.Int64ObservableGauge(
+	metrics.cacheCapacity, err = meter.Int64ObservableGauge(
 		"nimble.pool.cache",
 		metric.WithDescription("Capacity of cache in the pool"),
 		metric.WithUnit("By"),
@@ -73,11 +68,15 @@ func NewPoolMetrics(service *client.PoolService, logger *slog.Logger) (PoolMetri
 		return metrics, fmt.Errorf("error creating nimble.pool.cache: %w", err)
 	}
 
+	if err := metrics.Register(meter); err != nil {
+		return metrics, err
+	}
+
 	return metrics, nil
 }
 
-func (m *PoolMetrics) Register(ctx context.Context) error {
-	_, err := m.meter.RegisterCallback(
+func (m *PoolMetrics) Register(meter metric.Meter) error {
+	_, err := meter.RegisterCallback(
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading pool metrics")
 

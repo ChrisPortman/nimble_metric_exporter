@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/ChrisPortman/nimble_metric_exporter/pkg/client"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -33,12 +32,10 @@ type VolumeMetrics struct {
 	combinedIops       metric.Int64ObservableGauge
 	combinedThroughput metric.Int64ObservableGauge
 	combinedLatency    metric.Int64ObservableGauge
-
-	meter metric.Meter
 }
 
 //nolint:cyclop,funlen
-func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (VolumeMetrics, error) {
+func NewVolumeMetrics(service *client.VolumeService, meter metric.Meter, logger *slog.Logger) (VolumeMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -51,9 +48,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		logger:  log,
 	}
 
-	metrics.meter = otel.Meter("github.com/ChrisPortman/nimble_metric_exporter/pkg/exporter")
-
-	metrics.capacity, err = metrics.meter.Int64ObservableGauge(
+	metrics.capacity, err = meter.Int64ObservableGauge(
 		"nimble.volume.capacity",
 		metric.WithDescription("Capacity of the volume in bytes"),
 		metric.WithUnit("By"),
@@ -62,7 +57,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.capacity: %w", err)
 	}
 
-	metrics.used, err = metrics.meter.Int64ObservableGauge(
+	metrics.used, err = meter.Int64ObservableGauge(
 		"nimble.volume.used",
 		metric.WithDescription("Usage of the volume in bytes"),
 		metric.WithUnit("By"),
@@ -71,7 +66,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.used: %w", err)
 	}
 
-	metrics.snapUsed, err = metrics.meter.Int64ObservableGauge(
+	metrics.snapUsed, err = meter.Int64ObservableGauge(
 		"nimble.volume.snapused",
 		metric.WithDescription("Usage of the volume for snaps in bytes"),
 		metric.WithUnit("By"),
@@ -80,7 +75,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.snapused: %w", err)
 	}
 
-	metrics.connections, err = metrics.meter.Int64ObservableGauge(
+	metrics.connections, err = meter.Int64ObservableGauge(
 		"nimble.volume.connections",
 		metric.WithDescription("Number of connections to the volume"),
 	)
@@ -88,7 +83,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.connections: %w", err)
 	}
 
-	metrics.online, err = metrics.meter.Int64ObservableGauge(
+	metrics.online, err = meter.Int64ObservableGauge(
 		"nimble.volume.online",
 		metric.WithDescription("Indicates that the volume is online"),
 	)
@@ -96,7 +91,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.online: %w", err)
 	}
 
-	metrics.encrypted, err = metrics.meter.Int64ObservableGauge(
+	metrics.encrypted, err = meter.Int64ObservableGauge(
 		"nimble.volume.encrypted",
 		metric.WithDescription("Indicates that the volume is encryption enabled"),
 	)
@@ -104,7 +99,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.encrypted: %w", err)
 	}
 
-	metrics.deduped, err = metrics.meter.Int64ObservableGauge(
+	metrics.deduped, err = meter.Int64ObservableGauge(
 		"nimble.volume.deduped",
 		metric.WithDescription("Indicates that the volume is deduplication enabled"),
 	)
@@ -112,7 +107,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.deduped: %w", err)
 	}
 
-	metrics.readIops, err = metrics.meter.Int64ObservableGauge(
+	metrics.readIops, err = meter.Int64ObservableGauge(
 		"nimble.volume.read.iops.average.5m",
 		metric.WithDescription("Average read IOPS over last 5 minutes"),
 	)
@@ -120,7 +115,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.read.iops.average.5m: %w", err)
 	}
 
-	metrics.readThroughput, err = metrics.meter.Int64ObservableGauge(
+	metrics.readThroughput, err = meter.Int64ObservableGauge(
 		"nimble.volume.read.throughput.average.5m",
 		metric.WithDescription("Average read throughput over last 5 minutes"),
 	)
@@ -128,7 +123,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.read.throughput.average.5m: %w", err)
 	}
 
-	metrics.readLatency, err = metrics.meter.Int64ObservableGauge(
+	metrics.readLatency, err = meter.Int64ObservableGauge(
 		"nimble.volume.read.latency.average.5m",
 		metric.WithDescription("Average read latency over last 5 minutes"),
 	)
@@ -136,7 +131,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.read.latency.average.5m: %w", err)
 	}
 
-	metrics.writeIops, err = metrics.meter.Int64ObservableGauge(
+	metrics.writeIops, err = meter.Int64ObservableGauge(
 		"nimble.volume.write.iops.average.5m",
 		metric.WithDescription("Average write IOPS over last 5 minutes"),
 	)
@@ -144,7 +139,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.write.iops.average.5m: %w", err)
 	}
 
-	metrics.writeThroughput, err = metrics.meter.Int64ObservableGauge(
+	metrics.writeThroughput, err = meter.Int64ObservableGauge(
 		"nimble.volume.write.throughput.average.5m",
 		metric.WithDescription("Average write throughput over last 5 minutes"),
 	)
@@ -152,7 +147,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.write.throughput.average.5m: %w", err)
 	}
 
-	metrics.writeLatency, err = metrics.meter.Int64ObservableGauge(
+	metrics.writeLatency, err = meter.Int64ObservableGauge(
 		"nimble.volume.write.latency.average.5m",
 		metric.WithDescription("Average write latency over last 5 minutes"),
 	)
@@ -160,7 +155,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.write.latency.average.5m: %w", err)
 	}
 
-	metrics.combinedIops, err = metrics.meter.Int64ObservableGauge(
+	metrics.combinedIops, err = meter.Int64ObservableGauge(
 		"nimble.volume.combined.iops.average.5m",
 		metric.WithDescription("Average combined IOPS over last 5 minutes"),
 	)
@@ -168,7 +163,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.combined.iops.average.5m: %w", err)
 	}
 
-	metrics.combinedThroughput, err = metrics.meter.Int64ObservableGauge(
+	metrics.combinedThroughput, err = meter.Int64ObservableGauge(
 		"nimble.volume.combined.throughput.average.5m",
 		metric.WithDescription("Average combined throughput over last 5 minutes"),
 	)
@@ -176,7 +171,7 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.combined.throughput.average.5m: %w", err)
 	}
 
-	metrics.combinedLatency, err = metrics.meter.Int64ObservableGauge(
+	metrics.combinedLatency, err = meter.Int64ObservableGauge(
 		"nimble.volume.combined.latency.average.5m",
 		metric.WithDescription("Average combined latency over last 5 minutes"),
 	)
@@ -184,10 +179,14 @@ func NewVolumeMetrics(service *client.VolumeService, logger *slog.Logger) (Volum
 		return metrics, fmt.Errorf("error creating nimble.volume.combined.latency.average.5m: %w", err)
 	}
 
+	if err := metrics.Register(meter); err != nil {
+		return metrics, err
+	}
+
 	return metrics, nil
 }
 
-func (m *VolumeMetrics) Register(ctx context.Context) error {
+func (m *VolumeMetrics) Register(meter metric.Meter) error {
 	ternary := func(in bool) int64 {
 		if in {
 			return 1
@@ -196,7 +195,7 @@ func (m *VolumeMetrics) Register(ctx context.Context) error {
 		return 0
 	}
 
-	_, err := m.meter.RegisterCallback(
+	_, err := meter.RegisterCallback(
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading volume metrics")
 

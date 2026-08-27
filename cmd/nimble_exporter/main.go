@@ -17,7 +17,6 @@ import (
 )
 
 type CLI struct {
-	Host        string `name:"host" short:"h" env:"NIMBLE_HOST" help:"the IP or hostname of the Nimble array"`
 	Username    string `name:"username" short:"u" env:"NIMBLE_USERNAME" help:"Username to use when accessing the array"`
 	Password    string `name:"password" short:"p" env:"NIMBLE_PASSWORD" help:"Password to use when accessing the array"`
 	SSLNoVerify bool   `name:"ssl-no-verify" env:"NIMBLE_SSL_NO_VERIFY" help:"Disable TLS certificate verification when connecting to the array"`
@@ -50,91 +49,37 @@ func (c *CLI) Run() error {
 		slog.String("go_version", version.GoVersion),
 	)
 
-	otelClose, err := exporter.InitaliseOtel()
-	if err != nil {
-		return err
-	}
-	defer otelClose()
+	clientFactory := func(target string, clientLogger *slog.Logger) (*client.NimbleClient, error) {
+		logger := clientLogger
+		if logger == nil {
+			logger = slog.New(slog.DiscardHandler)
+		}
 
-	clientOpts := []client.NimbleClientOption{
-		client.SetNimbleHost(c.Host),
-		client.SetLogger(logger),
-	}
-	if c.SSLNoVerify {
-		clientOpts = append(clientOpts, client.SetTlsSkipVerify())
-	}
+		clientOpts := []client.NimbleClientOption{
+			client.SetNimbleHost(target),
+			client.SetLogger(logger),
+		}
+		if c.SSLNoVerify {
+			clientOpts = append(clientOpts, client.SetTlsSkipVerify())
+		}
 
-	client, err := client.NewNimbleCLient(
-		ctx, c.Username, c.Password, clientOpts...,
-	)
-	if err != nil {
-		return err
+		return client.NewNimbleCLient(
+			ctx, c.Username, c.Password, clientOpts...,
+		)
 	}
 
-	if err := c.registerMetrics(ctx, client, logger); err != nil {
-		return err
-	}
+	promServer := exporter.NewPrometheusServer(clientFactory, exporter.PrometheusServerOpts{
+		DisableDiskMetrics:   c.ExcludeDisk,
+		DisableShelfMetrics:  c.ExcludeShelf,
+		DisablePoolMetrics:   c.ExcludePool,
+		DisableVolumeMetrics: c.ExcludeVolume,
+		Logger:               logger,
+	})
 
 	logger.Info("starting prometheus scrape endpoint", slog.String("address", c.Listen))
 
-	if err := exporter.ServePrometheus(c.Listen); err != nil {
+	if err := promServer.Serve(c.Listen); err != nil {
 		logger.Error(err.Error())
-	}
-
-	return err
-}
-
-func (c *CLI) registerMetrics(ctx context.Context, client *client.NimbleClient, logger *slog.Logger) error {
-	if !c.ExcludeDisk {
-		logger.Info("registering disk metrics")
-
-		diskMetrics, err := exporter.NewDiskMetrics(client.DiskService(), logger)
-		if err != nil {
-			return err
-		}
-
-		if err := diskMetrics.Register(ctx); err != nil {
-			return err
-		}
-	}
-
-	if !c.ExcludeShelf {
-		logger.Info("registering shelf metrics")
-
-		shelfMetrics, err := exporter.NewShelfMetrics(client.ShelfService(), logger)
-		if err != nil {
-			return err
-		}
-
-		if err := shelfMetrics.Register(ctx); err != nil {
-			return err
-		}
-	}
-
-	if !c.ExcludePool {
-		logger.Info("registering pool metrics")
-
-		poolMetrics, err := exporter.NewPoolMetrics(client.PoolService(), logger)
-		if err != nil {
-			return err
-		}
-
-		if err := poolMetrics.Register(ctx); err != nil {
-			return err
-		}
-	}
-
-	if !c.ExcludeVolume {
-		logger.Info("registering volume metrics")
-
-		volumeMetrics, err := exporter.NewVolumeMetrics(client.VolumeService(), logger)
-		if err != nil {
-			return err
-		}
-
-		if err := volumeMetrics.Register(ctx); err != nil {
-			return err
-		}
 	}
 
 	return nil

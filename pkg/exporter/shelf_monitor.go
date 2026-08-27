@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -23,11 +22,9 @@ type ShelfMetrics struct {
 
 	sensorStatus metric.Int64ObservableGauge
 	sensorValue  metric.Int64ObservableGauge
-
-	meter metric.Meter
 }
 
-func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMetrics, error) {
+func NewShelfMetrics(service *client.ShelfService, meter metric.Meter, logger *slog.Logger) (ShelfMetrics, error) {
 	var err error
 
 	log := slog.New(slog.DiscardHandler)
@@ -40,9 +37,7 @@ func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMe
 		logger:  log,
 	}
 
-	metrics.meter = otel.Meter("github.com/ChrisPortman/nimble_metric_exporter/pkg/exporter")
-
-	metrics.overallPSU, err = metrics.meter.Int64ObservableGauge(
+	metrics.overallPSU, err = meter.Int64ObservableGauge(
 		"nimble.shelf.psus.ok",
 		metric.WithDescription("Shelf powersupplies are OK (= 1)"),
 	)
@@ -50,7 +45,7 @@ func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMe
 		return metrics, fmt.Errorf("error creating nimble.shelf.psus.ok: %w", err)
 	}
 
-	metrics.overallFan, err = metrics.meter.Int64ObservableGauge(
+	metrics.overallFan, err = meter.Int64ObservableGauge(
 		"nimble.shelf.fans.ok",
 		metric.WithDescription("Shelf fans are OK (= 1)"),
 	)
@@ -58,7 +53,7 @@ func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMe
 		return metrics, fmt.Errorf("error creating nimble.shelf.fans.ok: %w", err)
 	}
 
-	metrics.overallTemp, err = metrics.meter.Int64ObservableGauge(
+	metrics.overallTemp, err = meter.Int64ObservableGauge(
 		"nimble.shelf.temp.ok",
 		metric.WithDescription("Indicates temperature is OK overall (= 1)"),
 	)
@@ -66,7 +61,7 @@ func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMe
 		return metrics, fmt.Errorf("error creating nimble.shelf.temp.ok: %w", err)
 	}
 
-	metrics.sensorStatus, err = metrics.meter.Int64ObservableGauge(
+	metrics.sensorStatus, err = meter.Int64ObservableGauge(
 		"nimble.shelf.sensor.ok",
 		metric.WithDescription("Indicates sensor is OK (= 1)"),
 	)
@@ -74,7 +69,7 @@ func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMe
 		return metrics, fmt.Errorf("error creating nimble.shelf.sensor.ok: %w", err)
 	}
 
-	metrics.sensorValue, err = metrics.meter.Int64ObservableGauge(
+	metrics.sensorValue, err = meter.Int64ObservableGauge(
 		"nimble.shelf.sensor.value",
 		metric.WithDescription("Value of sensor"),
 	)
@@ -82,10 +77,14 @@ func NewShelfMetrics(service *client.ShelfService, logger *slog.Logger) (ShelfMe
 		return metrics, fmt.Errorf("error creating nimble.shelf.sensor.value: %w", err)
 	}
 
+	if err := metrics.Register(meter); err != nil {
+		return metrics, err
+	}
+
 	return metrics, nil
 }
 
-func (m *ShelfMetrics) Register(ctx context.Context) error {
+func (m *ShelfMetrics) Register(meter metric.Meter) error {
 	ternary := func(in bool) int64 {
 		if in {
 			return 1
@@ -94,7 +93,7 @@ func (m *ShelfMetrics) Register(ctx context.Context) error {
 		return 0
 	}
 
-	_, err := m.meter.RegisterCallback(
+	_, err := meter.RegisterCallback(
 		func(ctx context.Context, observer metric.Observer) error {
 			m.logger.Debug("loading shelf metrics")
 

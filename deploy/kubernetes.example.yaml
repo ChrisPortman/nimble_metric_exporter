@@ -1,53 +1,51 @@
 # An example deployment into kubernetes.
-
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-nimble-secret
+  name: nimble-api-credentials
   namespace: prometheus
 type: Opaque
 stringData:
-  username: username
-  password: password
+  username: ARRAY_USERNAME
+  password: ARRAY_PASSWORD
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: metrics
-    app.kubernetes.io/instance: nimble-metrics-exporter
     app.kubernetes.io/name: nimble-metrics-exporter
   name: nimble-metrics-exporter
   namespace: prometheus
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nimble-metrics-exporter
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: metrics
-        app.kubernetes.io/instance: nimble-metrics-exporter
+        app.kubernetes.io/name: nimble-metrics-exporter
       name: nimble-metrics-exporter
       namespace: prometheus
     spec:
       containers:
-        - env:
-            - name: NIMBLE_HOST
-              value: array.domain
+        - name: nimble-metrics-exporter
+          image: nimble-metric-exporter:latest
+          env:
             - name: NIMBLE_USERNAME
               valueFrom:
-              secretKeyRef:
-                name: my-nimble-secret
-                key: username
+                secretKeyRef:
+                  name: nimble-api-credentials
+                  key: username
             - name: NIMBLE_PASSWORD
               valueFrom:
-              secretKeyRef:
-                name: my-nimble-secret
-                key: password
+                secretKeyRef:
+                  name: nimble-api-credentials
+                  key: password
             - name: NIMBLE_SSL_NO_VERIFY
               value: "true"
-          image: nimble-metrics-exporter:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -57,7 +55,6 @@ spec:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
-          name: nimble-metrics-exporter
           ports:
             - containerPort: 9490
               name: http
@@ -85,3 +82,49 @@ spec:
         runAsUser: 1000
         seccompProfile:
           type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: nimble-metrics-exporter
+  name: nimble-metrics-exporter
+  namespace: prometheus
+spec:
+  internalTrafficPolicy: Cluster
+  ports:
+    - name: http-metrics
+      port: 9490
+      protocol: TCP
+      targetPort: 9490
+  selector:
+    app.kubernetes.io/name: nimble-metrics-exporter
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: nimble-storage-exporter
+  namespace: prometheus
+spec:
+  jobName: nimble-metrics-exporter
+  scrapeInterval: 15s
+  scrapeTimeout: 10s
+  relabelings:
+    - action: replace
+      sourceLabels:
+        - __address__
+      targetLabel: __param_target
+    - action: replace
+      sourceLabels:
+        - __param_target
+      targetLabel: instance
+    - action: replace
+      replacement: nimble-metrics-exporter.prometheus.svc.cluster.local:9490
+      targetLabel: __address__
+  staticConfigs:
+    - labels:
+        scrape_interval: 15s
+      targets:
+        - nimble01.example.com
