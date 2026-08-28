@@ -25,10 +25,11 @@ jobs:
           echo "DATE=\"$(date)\"" >> $GITHUB_ENV
           echo "GOVERSION=\"$(go version)\"" >> $GITHUB_ENV
           echo "PREFIX=\"${VERSION_PKG}\"" >> $GITHUB_ENV
-          echo "LDFLAGS=\"-s -w\"" >> $GITHUB_ENV
-          echo "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.Version=${VERSION}'\"" >> $GITHUB_ENV
-          echo "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.BuildDate=${DATE}'\"" >> $GITHUB_ENV
-          echo "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.GoVersion=${GOVERSION}'\"" >> $GITHUB_ENV
+          export "LDFLAGS=\"-s -w\""
+          export "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.Version=${VERSION}'\""
+          export "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.BuildDate=${DATE}'\""
+          export "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.GoVersion=${GOVERSION}'\""
+          echo "$LDFLAGS" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
       - name: Build
