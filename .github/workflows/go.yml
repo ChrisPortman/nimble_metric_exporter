@@ -28,11 +28,13 @@ jobs:
           export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.Version=${VERSION}'"
           export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.BuildDate=${DATE}'"
           export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.GoVersion=${GOVERSION}'"
-          echo "LDFLAGS=\"$LDFLAGS\"" >> $GITHUB_ENV
+          echo "LDFLAGS='$LDFLAGS'" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
       - name: Build
-        run: go build -v -o ./bin/ -trimpath -ldflags ${LDFLAGS} ./...
+        run: |
+          echo $LDFLAGS
+          go build -v -o ./bin/ -trimpath -ldflags "${LDFLAGS}" ./...
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
