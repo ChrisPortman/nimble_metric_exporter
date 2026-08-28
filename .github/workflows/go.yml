@@ -21,15 +21,14 @@ jobs:
         env:
           VERSION_PKG: "github.com/ChrisPortman/nimble_metric_exporter/internal/version"
         run: |
-          echo "VERSION=\"$(git describe --tags --abbrev=8 --dirty --always)\"" >> $GITHUB_ENV
-          echo "DATE=\"$(date)\"" >> $GITHUB_ENV
-          echo "GOVERSION=\"$(go version)\"" >> $GITHUB_ENV
-          echo "PREFIX=\"${VERSION_PKG}\"" >> $GITHUB_ENV
-          export "LDFLAGS=\"-s -w\""
-          export "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.Version=${VERSION}'\""
-          export "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.BuildDate=${DATE}'\""
-          export "LDFLAGS=\"$LDFLAGS -X '${PREFIX}.GoVersion=${GOVERSION}'\""
-          echo "$LDFLAGS" >> $GITHUB_ENV
+          export VERSION="$(git describe --tags --abbrev=8 --dirty --always)"
+          export DATE="$(date)"
+          export GOVERSION="$(go version)"
+          export LDFLAGS="-s -w"
+          export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.Version=${VERSION}'"
+          export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.BuildDate=${DATE}'"
+          export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.GoVersion=${GOVERSION}'"
+          echo "LDFLAGS=\"$LDFLAGS\"" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
       - name: Build
