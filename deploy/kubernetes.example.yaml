@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: nimble-metrics-exporter
-          image: nimble-metric-exporter:latest
+          image: chrisportman/nimble_metric_exporter:0.1.2
           env:
             - name: NIMBLE_USERNAME
               valueFrom:

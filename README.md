@@ -67,8 +67,7 @@ Test with `curl http://localhost:9490/?target=myarray.mydomain.com`
 ### Docker
 
 ```
-$ docker build -t nimble-metrics-exporter:latest .
-$ docker run --rm -p 9490:9490 registry.iron.ore/ironore/nimble-metric-exporter:latest --username myusername --password mypassword
+$ docker run --rm -p 9490:9490 chrisportman/nimble_metric_exporter:<version> --username myusername --password mypassword
 ```
 
 ### Kubernetes
