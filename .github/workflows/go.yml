@@ -32,7 +32,7 @@ jobs:
           cat $GITHUB_ENV
 
       - name: Build
-        run: env && go build -v -o ./bin/ -trimpath -ldflags "${LDFLAGS}" ./...
+        run: go build -v -o ./bin/ -trimpath -ldflags ${LDFLAGS} ./...
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
