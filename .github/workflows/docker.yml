@@ -25,4 +25,4 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/nimble_metric_exporter:latest
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/nimble_metric_exporter:${{ github.ref_name }}
