@@ -31,7 +31,7 @@ to generated Go types for the structures defined in the above reference.  They w
 hand to meet the requirements of this project.  They are internal to this project and should not be
 trusted beyond the extent they are actually used by this project.
 
-## Compared to the HPE
+## Compared to the HPE Exporter
 
 HPE provides a metrics exporter (https://hpe-storage.github.io/array-exporter/) however does not
 expose any hardware related monitoring metrics.  For example, it won't tell you when a disk has
