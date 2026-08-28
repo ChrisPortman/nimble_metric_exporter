@@ -21,20 +21,21 @@ jobs:
         env:
           VERSION_PKG: "github.com/ChrisPortman/nimble_metric_exporter/internal/version"
         run: |
-          export VERSION="$(git describe --tags --abbrev=8 --dirty --always)"
-          export DATE="$(date)"
-          export GOVERSION="$(go version)"
-          export LDFLAGS="-s -w"
-          export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.Version=${VERSION}'"
-          export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.BuildDate=${DATE}'"
-          export LDFLAGS="$LDFLAGS -X '${VERSION_PKG}.GoVersion=${GOVERSION}'"
-          echo "LDFLAGS=\"$LDFLAGS\"" >> $GITHUB_ENV
+          echo "VERSION=\"$(git describe --tags --abbrev=8 --dirty --always)\"" >> $GITHUB_ENV
+          echo "DATE=\"$(date)\"" >> $GITHUB_ENV
+          echo "GOVERSION=\"$(go version)\"" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
       - name: Build
+        env:
+          VERSION_PKG: "github.com/ChrisPortman/nimble_metric_exporter/internal/version"
         run: |
-          echo $LDFLAGS
-          go build -v -o ./bin/ -trimpath -ldflags="${LDFLAGS}" ./...
+          go build -v -trimpath \
+            -ldflags="-s -w \
+              -X '${VERSION_PKG}.Version=${VERSION}' \
+              -X '${VERSION_PKG}.BuildDate=${DATE}' \
+              -X '${VERSION_PKG}.GoVersion=${GOVERSION}'" \
+            -o ./bin/ ./...
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
