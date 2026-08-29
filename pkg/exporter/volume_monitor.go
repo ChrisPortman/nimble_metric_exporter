@@ -295,7 +295,8 @@ func getVolumeStates(ctx context.Context, service *client.VolumeService) ([]volu
 		}
 
 		volumeStates = append(volumeStates, volumeState{
-			capacity:    volume.Size,
+			// volume.Size is in MB where as the others are bytes :-/
+			capacity:    volume.Size * 1_048_576,
 			used:        volume.VolUsageUncompressedBytes,
 			snapUsed:    volume.SnapUsageUncompressedBytes,
 			connections: volume.NumConnections,
